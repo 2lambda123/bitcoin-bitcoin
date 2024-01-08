@@ -10,6 +10,8 @@
 #include <string>
 
 #include <univalue.h>
+#include <util/fs.h>
+#include <util/fs_helpers.h>
 
 UniValue JSONRPCRequestObj(const std::string& strMethod, const UniValue& params, const UniValue& id);
 UniValue JSONRPCReplyObj(const UniValue& result, const UniValue& error, const UniValue& id);
@@ -17,7 +19,7 @@ std::string JSONRPCReply(const UniValue& result, const UniValue& error, const Un
 UniValue JSONRPCError(int code, const std::string& message);
 
 /** Generate a new RPC authentication cookie and write it to disk */
-bool GenerateAuthCookie(std::string *cookie_out);
+bool GenerateAuthCookie(std::string* cookie_out, CookiePerms::Perm cookie_perms);
 /** Read the RPC authentication cookie from disk */
 bool GetAuthCookie(std::string *cookie_out);
 /** Delete RPC authentication cookie from disk */

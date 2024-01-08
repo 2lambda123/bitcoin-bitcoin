@@ -7,11 +7,13 @@
 
 #include <any>
 #include <util/fs.h>
+#include <util/fs_helpers.h>
 
 /** Default permissions for cookie file.
  * Set to owner read/write, which on Windows sets the write permission.
  */
-const fs::perms DEFAULT_COOKIE_PERMS{fs::perms::owner_read | fs::perms::owner_write};
+const CookiePerms::Perm DEFAULT_COOKIE_PERMS = CookiePerms::owner;
+
 
 /** Start HTTP RPC subsystem.
  * Precondition; HTTP and RPC has been started.
