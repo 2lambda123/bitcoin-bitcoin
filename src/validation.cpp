@@ -787,7 +787,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
                 //
                 // Replaceability signaling of the original transactions may be
                 // ignored due to node setting.
-                const bool allow_rbf{m_pool.m_opts.full_rbf || SignalsOptInRBF(*ptxConflicting) || ptxConflicting->nVersion == 3};
+                const bool allow_rbf{m_pool.m_opts.full_rbf || SignalsOptInRBF(*ptxConflicting) || ptxConflicting->version == 3};
                 if (!allow_rbf) {
                     return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "txn-mempool-conflict");
                 }
@@ -891,7 +891,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // method of ensuring the tx remains bumped. For example, the fee-bumping child could disappear
     // due to a replacement.
     // The only exception is v3 transactions.
-    if (!bypass_limits && ws.m_ptx->nVersion != 3 && ws.m_modified_fees < m_pool.m_opts.min_relay_feerate.GetFee(ws.m_vsize)) {
+    if (!bypass_limits && ws.m_ptx->version != 3 && ws.m_modified_fees < m_pool.m_opts.min_relay_feerate.GetFee(ws.m_vsize)) {
         // Even though this is a fee-related failure, this result is TX_MEMPOOL_POLICY, not
         // TX_RECONSIDERABLE, because it cannot be bypassed using package validation.
         return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "min relay fee not met",
