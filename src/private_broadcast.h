@@ -30,6 +30,13 @@ public:
     void Add(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
     /**
+     * Forget a transaction.
+     * @return the number of times the transaction was broadcast if the transaction existed and was removed,
+     * otherwise empty optional (the transaction was not in the storage).
+     */
+    std::optional<size_t> Remove(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
+
+    /**
      * Get the transaction that has been broadcast fewest times and least recently.
      */
     std::optional<CTransactionRef> GetTxForBroadcast() EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
