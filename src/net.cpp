@@ -3112,6 +3112,8 @@ void CConnman::PrivateBroadcastSub(size_t n)
                   desired);
 }
 
+size_t CConnman::NumPrivateBroadcastToOpen() const { return m_private_broadcast_connections_to_open.load(); }
+
 Mutex NetEventsInterface::g_msgproc_mutex;
 
 void CConnman::ThreadMessageHandler()
