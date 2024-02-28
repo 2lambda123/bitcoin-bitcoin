@@ -15,6 +15,8 @@ Exports:
 * G: the secp256k1 generator point
 """
 
+from test_framework.util import assert_not_equal
+
 
 class FE:
     """Objects of this class represent elements of the field GF(2**256 - 2**32 - 977).
