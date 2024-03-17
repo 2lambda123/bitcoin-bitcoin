@@ -787,10 +787,14 @@ static std::optional<int> GetPruneHeight(const Chainstate& active_chainstate) EX
     AssertLockHeld(::cs_main);
 
     const CBlockIndex& chain_tip{*CHECK_NONFATAL(active_chainstate.m_chain.Tip())};
-    if (!(chain_tip.nStatus & BLOCK_HAVE_DATA)) return chain_tip.nHeight;
-    const auto first_block{active_chainstate.m_blockman.GetFirstBlock(chain_tip, BLOCK_HAVE_DATA)};
+    // Check for both data and undo data
+    if (!(chain_tip.nStatus & BLOCK_HAVE_MASK)) return chain_tip.nHeight;
+    const auto first_block{active_chainstate.m_blockman.GetFirstBlock(chain_tip, /*status_mask=*/BLOCK_HAVE_MASK)};
 
-    if (first_block->nHeight == 0) {
+    // Result can never be 0 because genesis block is never pruned, so the
+    // result 1 means that no block has been pruned.
+    CHECK_NONFATAL(first_block->nHeight > 0);
+    if (first_block->nHeight == 1) {
         return std::nullopt;
     }
     // The block before the block with all data is the last that was pruned
