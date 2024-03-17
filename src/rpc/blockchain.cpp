@@ -782,6 +782,21 @@ static RPCHelpMan getblock()
     };
 }
 
+//! Return height of highest block that has been pruned, or std::nullopt if no blocks have been pruned
+static std::optional<int> GetPruneHeight(const Chainstate& active_chainstate) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+    AssertLockHeld(::cs_main);
+
+    const CBlockIndex& chain_tip{*CHECK_NONFATAL(active_chainstate.m_chain.Tip())};
+    if (!(chain_tip.nStatus & BLOCK_HAVE_DATA)) return chain_tip.nHeight;
+    const auto first_block{active_chainstate.m_blockman.GetFirstBlock(chain_tip, BLOCK_HAVE_DATA)};
+
+    if (first_block->nHeight == 0) {
+        return std::nullopt;
+    }
+    // The block before the block with all data is the last that was pruned
+    return Assert(first_block->pprev)->nHeight;
+}
+
 static RPCHelpMan pruneblockchain()
 {
     return RPCHelpMan{"pruneblockchain", "",
@@ -834,8 +849,7 @@ static RPCHelpMan pruneblockchain()
     }
 
     PruneBlockFilesManual(active_chainstate, height);
-    const CBlockIndex& block{*CHECK_NONFATAL(active_chain.Tip())};
-    return block.nStatus & BLOCK_HAVE_DATA ? active_chainstate.m_blockman.GetFirstStoredBlock(block)->nHeight - 1 : block.nHeight;
+    return GetPruneHeight(active_chainstate).value_or(-1);
 },
     };
 }
@@ -1288,8 +1302,8 @@ RPCHelpMan getblockchaininfo()
     obj.pushKV("size_on_disk", chainman.m_blockman.CalculateCurrentUsage());
     obj.pushKV("pruned", chainman.m_blockman.IsPruneMode());
     if (chainman.m_blockman.IsPruneMode()) {
-        bool has_tip_data = tip.nStatus & BLOCK_HAVE_DATA;
-        obj.pushKV("pruneheight", has_tip_data ? chainman.m_blockman.GetFirstStoredBlock(tip)->nHeight : tip.nHeight + 1);
+        const auto prune_height{GetPruneHeight(active_chainstate)};
+        obj.pushKV("pruneheight", prune_height ? prune_height.value() + 1 : 0);
 
         const bool automatic_pruning{chainman.m_blockman.GetPruneTarget() != BlockManager::PRUNE_TARGET_MANUAL};
         obj.pushKV("automatic_pruning",  automatic_pruning);
