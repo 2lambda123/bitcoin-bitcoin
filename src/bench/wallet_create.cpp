@@ -2,10 +2,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
-
 #include <bench/bench.h>
 #include <node/context.h>
 #include <random.h>
@@ -51,9 +47,7 @@ static void WalletCreate(benchmark::Bench& bench, bool encrypted)
 static void WalletCreatePlain(benchmark::Bench& bench) { WalletCreate(bench, /*encrypted=*/false); }
 static void WalletCreateEncrypted(benchmark::Bench& bench) { WalletCreate(bench, /*encrypted=*/true); }
 
-#ifdef USE_SQLITE
 BENCHMARK(WalletCreatePlain, benchmark::PriorityLevel::LOW);
 BENCHMARK(WalletCreateEncrypted, benchmark::PriorityLevel::LOW);
-#endif
 
 } // namespace wallet
