@@ -146,7 +146,7 @@ bool Session::Listen(Connection& conn)
         conn.sock = StreamAccept();
         return true;
     } catch (const std::runtime_error& e) {
-        LogPrintLevel(BCLog::I2P, BCLog::Level::Debug, "Error listening: %s\n", e.what());
+        LogPrintLevel(BCLog::I2P, BCLog::Level::Error, "Couldn't listen: %s\n", e.what());
         CheckControlSock();
     }
     return false;
@@ -205,7 +205,7 @@ bool Session::Accept(Connection& conn)
     if (m_interrupt) {
         LogPrintLevel(BCLog::I2P, BCLog::Level::Debug, "Accept was interrupted\n");
     } else {
-        LogPrintLevel(BCLog::I2P, BCLog::Level::Debug, "Error accepting%s: %s\n", disconnect ? " (will close the session)" : "", errmsg);
+        LogPrintLevel(BCLog::I2P, BCLog::Level::Error, "Couldn't accept%s: %s\n", disconnect ? " (will close the session)" : "", errmsg);
     }
     if (disconnect) {
         LOCK(m_mutex);
