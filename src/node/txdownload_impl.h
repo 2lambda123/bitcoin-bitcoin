@@ -208,6 +208,7 @@ public:
     std::optional<PackageToValidate> Find1P1CPackage(const CTransactionRef& ptx, NodeId nodeid);
     void MempoolAcceptedTx(const CTransactionRef& tx);
     RejectedTxTodo MempoolRejectedTx(const CTransactionRef& ptx, const TxValidationState& state, NodeId nodeid, bool maybe_add_new_orphan);
+    void MempoolRejectedPackage(const Package& package);
 };
 } // namespace node
 #endif // BITCOIN_NODE_TXDOWNLOAD_IMPL_H

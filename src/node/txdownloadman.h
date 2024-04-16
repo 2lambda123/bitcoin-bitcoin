@@ -79,6 +79,7 @@ public:
     RejectedTxTodo MempoolRejectedTx(const CTransactionRef& ptx, const TxValidationState& state, NodeId nodeid, bool maybe_add_new_orphan) {
         return m_impl->MempoolRejectedTx(ptx, state, nodeid, maybe_add_new_orphan);
     }
+    void MempoolRejectedPackage(const Package& package) { m_impl->MempoolRejectedPackage(package); }
 };
 } // namespace node
 #endif // BITCOIN_NODE_TXDOWNLOADMAN_H
