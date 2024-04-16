@@ -73,6 +73,9 @@ public:
     std::optional<PackageToValidate> Find1P1CPackage(const CTransactionRef& ptx, NodeId nodeid) {
         return m_impl->Find1P1CPackage(ptx, nodeid);
     }
+
+    /** Respond to successful transaction submission to mempool */
+    void MempoolAcceptedTx(const CTransactionRef& tx) { m_impl->MempoolAcceptedTx(tx); }
 };
 } // namespace node
 #endif // BITCOIN_NODE_TXDOWNLOADMAN_H
