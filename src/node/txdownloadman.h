@@ -80,6 +80,13 @@ public:
         return m_impl->MempoolRejectedTx(ptx, state, nodeid, maybe_add_new_orphan);
     }
     void MempoolRejectedPackage(const Package& package) { m_impl->MempoolRejectedPackage(package); }
+
+    /** Marks a tx as ReceivedResponse in txrequest and checks whether AlreadyHaveTx.
+     * Return a bool indicating whether this tx should be validated. If false, optionally, a
+     * PackageToValidate. */
+    std::pair<bool, std::optional<PackageToValidate>> ReceivedTx(NodeId nodeid, const CTransactionRef& ptx) {
+        return m_impl->ReceivedTx(nodeid, ptx);
+    }
 };
 } // namespace node
 #endif // BITCOIN_NODE_TXDOWNLOADMAN_H
