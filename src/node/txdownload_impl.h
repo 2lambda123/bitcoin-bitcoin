@@ -4,6 +4,7 @@
 #ifndef BITCOIN_NODE_TXDOWNLOAD_IMPL_H
 #define BITCOIN_NODE_TXDOWNLOAD_IMPL_H
 
+#include <consensus/validation.h>
 #include <kernel/chain.h>
 #include <net.h>
 #include <policy/packages.h>
@@ -33,6 +34,8 @@ struct TxDownloadOptions {
     const CTxMemPool& m_mempool;
     /** RNG provided by caller. */
     FastRandomContext& m_rng;
+    /** Maximum number of transactions allowed in orphanage. */
+    const uint32_t m_max_orphan_txs;
 };
 struct TxDownloadConnectionInfo {
     /** Whether this peer is preferred for transaction download. */
@@ -57,6 +60,7 @@ struct PackageToValidate {
 
     // Move ctor
     PackageToValidate(PackageToValidate&& other) : m_txns{std::move(other.m_txns)}, m_senders{std::move(other.m_senders)} {}
+    PackageToValidate(const PackageToValidate& other) : m_txns{other.m_txns}, m_senders{other.m_senders} {}
 
     // Move assignment
     PackageToValidate& operator=(PackageToValidate&& other) {
@@ -75,6 +79,13 @@ struct PackageToValidate {
                          m_txns.back()->GetWitnessHash().ToString(),
                          m_senders.back());
     }
+};
+
+struct RejectedTxTodo
+{
+    bool m_should_add_extra_compact_tx;
+    std::vector<uint256> m_unique_parents;
+    std::optional<PackageToValidate> m_package_to_validate;
 };
 
 class TxDownloadImpl {
@@ -196,6 +207,7 @@ public:
 
     std::optional<PackageToValidate> Find1P1CPackage(const CTransactionRef& ptx, NodeId nodeid);
     void MempoolAcceptedTx(const CTransactionRef& tx);
+    RejectedTxTodo MempoolRejectedTx(const CTransactionRef& ptx, const TxValidationState& state, NodeId nodeid, bool maybe_add_new_orphan);
 };
 } // namespace node
 #endif // BITCOIN_NODE_TXDOWNLOAD_IMPL_H
