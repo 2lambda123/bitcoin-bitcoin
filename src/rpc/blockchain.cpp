@@ -2691,7 +2691,7 @@ UniValue CreateUTXOSnapshot(
         tip->nHeight, tip->GetBlockHash().ToString(),
         fs::PathToString(path), fs::PathToString(temppath)));
 
-    SnapshotMetadata metadata{tip->GetBlockHash(), maybe_stats->coins_count};
+    SnapshotMetadata metadata{tip->GetBlockHash(), tip->nHeight, maybe_stats->coins_count};
 
     afile << metadata;
 
@@ -2712,7 +2712,7 @@ UniValue CreateUTXOSnapshot(
     auto write_coins_to_file = [&](AutoFile& afile, const Txid& last_hash, const std::vector<std::pair<uint32_t, Coin>>& coins, size_t& written_coins_count) {
         afile << last_hash;
         WriteCompactSize(afile, coins.size());
-        for (auto [n, coin] : coins) {
+        for (const auto& [n, coin] : coins) {
             WriteCompactSize(afile, n);
             afile << coin;
             ++written_coins_count;
@@ -2804,12 +2804,26 @@ static RPCHelpMan loadtxoutset()
     }
 
     SnapshotMetadata metadata;
-    afile >> metadata;
+    try {
+        afile >> metadata;
+    } catch (const std::ios_base::failure& e) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Unable to parse metadata: %s", e.what()));
+    }
 
     uint256 base_blockhash = metadata.m_base_blockhash;
+    int base_blockheight = metadata.m_base_blockheight;
     if (!chainman.GetParams().AssumeutxoForBlockhash(base_blockhash).has_value()) {
+        auto available_heights = chainman.GetParams().GetAvailableSnapshotHeights();
+        std::ostringstream oss;
+        for (auto it = available_heights.begin(); it != available_heights.end(); ++it) {
+            oss << (it != available_heights.begin() ? ", " : "") << *it;
+        }
+        std::string heights_formatted = oss.str();
         throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Unable to load UTXO snapshot, "
-            "assumeutxo block hash in snapshot metadata not recognized (%s)", base_blockhash.ToString()));
+            "assumeutxo block hash in snapshot metadata not recognized (hash: %s, height: %s). The following snapshot heights are available: %s.",
+            base_blockhash.ToString(),
+            base_blockheight,
+            heights_formatted));
     }
     CBlockIndex* snapshot_start_block = WITH_LOCK(::cs_main,
             return chainman.m_blockman.LookupBlockIndex(base_blockhash));
