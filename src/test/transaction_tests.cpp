@@ -375,6 +375,18 @@ BOOST_AUTO_TEST_CASE(tx_no_inputs)
     BOOST_CHECK(state.GetRejectReason() == "bad-txns-vin-empty");
 }
 
+BOOST_AUTO_TEST_CASE(tx_oversized)
+{
+    CMutableTransaction tx;
+    tx.vin.resize(1);
+    auto largeOutput = CScript() << OP_RETURN << std::vector<unsigned char>(MAX_BLOCK_WEIGHT / WITNESS_SCALE_FACTOR, 0x00);
+    tx.vout.emplace_back(1, largeOutput);
+
+    TxValidationState state;
+    BOOST_CHECK_MESSAGE(!CheckTransaction(CTransaction(tx), state), "Oversized transaction should be invalid.");
+    BOOST_CHECK(state.GetRejectReason() == "bad-txns-oversize");
+}
+
 BOOST_AUTO_TEST_CASE(basic_transaction_tests)
 {
     // Random real transaction (e2769b09e784f32f62ef849763d4f45b98e07ba658647343b915ff832b110436)
