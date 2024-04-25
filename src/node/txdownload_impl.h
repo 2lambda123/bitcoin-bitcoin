@@ -6,6 +6,7 @@
 
 #include <kernel/chain.h>
 #include <net.h>
+#include <policy/packages.h>
 #include <txorphanage.h>
 #include <txrequest.h>
 
@@ -30,6 +31,8 @@ static constexpr auto GETDATA_TX_INTERVAL{60s};
 struct TxDownloadOptions {
     /** Read-only reference to mempool. */
     const CTxMemPool& m_mempool;
+    /** RNG provided by caller. */
+    FastRandomContext& m_rng;
 };
 struct TxDownloadConnectionInfo {
     /** Whether this peer is preferred for transaction download. */
@@ -38,6 +41,40 @@ struct TxDownloadConnectionInfo {
     const bool m_relay_permissions;
     /** Whether this peer supports wtxid relay. */
     const bool m_wtxid_relay;
+};
+/** A package to validate. Only 1p1c packages are supported right now.  */
+struct PackageToValidate {
+    Package m_txns;
+    std::vector<NodeId> m_senders;
+    /** Construct a 1-parent-1-child package. */
+    explicit PackageToValidate(const CTransactionRef& parent,
+                               const CTransactionRef& child,
+                               NodeId parent_sender,
+                               NodeId child_sender) :
+        m_txns{parent, child},
+        m_senders{parent_sender, child_sender}
+    {}
+
+    // Move ctor
+    PackageToValidate(PackageToValidate&& other) : m_txns{std::move(other.m_txns)}, m_senders{std::move(other.m_senders)} {}
+
+    // Move assignment
+    PackageToValidate& operator=(PackageToValidate&& other) {
+        this->m_txns = std::move(other.m_txns);
+        this->m_senders = std::move(other.m_senders);
+        return *this;
+    }
+
+    std::string ToString() const {
+        Assume(m_txns.size() == 2);
+        return strprintf("parent %s (wtxid=%s, sender=%d) + child %s (wtxid=%s, sender=%d)",
+                         m_txns.front()->GetHash().ToString(),
+                         m_txns.front()->GetWitnessHash().ToString(),
+                         m_senders.front(),
+                         m_txns.back()->GetHash().ToString(),
+                         m_txns.back()->GetWitnessHash().ToString(),
+                         m_senders.back());
+    }
 };
 
 class TxDownloadImpl {
@@ -156,6 +193,8 @@ public:
 
     /** Marks a tx as ReceivedResponse in txrequest. */
     void ReceivedNotFound(NodeId nodeid, const std::vector<uint256>& txhashes);
+
+    std::optional<PackageToValidate> Find1P1CPackage(const CTransactionRef& ptx, NodeId nodeid);
 };
 } // namespace node
 #endif // BITCOIN_NODE_TXDOWNLOAD_IMPL_H
