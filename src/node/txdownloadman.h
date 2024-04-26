@@ -71,6 +71,12 @@ public:
     std::pair<bool, std::optional<PackageToValidate>> ReceivedTx(NodeId nodeid, const CTransactionRef& ptx) {
         return m_impl->ReceivedTx(nodeid, ptx);
     }
+
+    /** Whether there are any orphans to reconsider for this peer. */
+    bool HaveMoreWork(NodeId nodeid) { return m_impl->HaveMoreWork(nodeid); }
+
+    /** Returns next orphan tx to consider, or nullptr if none exist. */
+    CTransactionRef GetTxToReconsider(NodeId nodeid) { return m_impl->GetTxToReconsider(nodeid); }
 };
 } // namespace node
 #endif // BITCOIN_NODE_TXDOWNLOADMAN_H
