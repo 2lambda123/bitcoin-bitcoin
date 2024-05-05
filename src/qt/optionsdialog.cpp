@@ -107,9 +107,6 @@ OptionsDialog::OptionsDialog(QWidget* parent, bool enableWallet)
 #ifndef USE_UPNP
     ui->mapPortUpnp->setEnabled(false);
 #endif
-#ifndef USE_NATPMP
-    ui->mapPortNatpmp->setEnabled(false);
-#endif
 
     ui->proxyIp->setEnabled(false);
     ui->proxyPort->setEnabled(false);
@@ -296,7 +293,7 @@ void OptionsDialog::setMapper()
 
     /* Network */
     mapper->addMapping(ui->mapPortUpnp, OptionsModel::MapPortUPnP);
-    mapper->addMapping(ui->mapPortNatpmp, OptionsModel::MapPortNatpmp);
+    mapper->addMapping(ui->mapPortPCP, OptionsModel::MapPortPCP);
     mapper->addMapping(ui->allowIncoming, OptionsModel::Listen);
     mapper->addMapping(ui->enableServer, OptionsModel::Server);
 

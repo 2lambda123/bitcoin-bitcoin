@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
     gArgs.ForceSetArg("-dnsseed", "0");
     gArgs.ForceSetArg("-fixedseeds", "0");
     gArgs.ForceSetArg("-upnp", "0");
-    gArgs.ForceSetArg("-natpmp", "0");
+    gArgs.ForceSetArg("-pcp", "0");
 
     std::string error;
     if (!gArgs.ReadConfigFiles(error, true)) QWARN(error.c_str());
