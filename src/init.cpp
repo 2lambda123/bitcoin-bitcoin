@@ -556,11 +556,8 @@ void SetupServerArgs(ArgsManager& argsman)
 #else
     hidden_args.emplace_back("-upnp");
 #endif
-#ifdef USE_NATPMP
-    argsman.AddArg("-natpmp", strprintf("Use NAT-PMP to map the listening port (default: %u)", DEFAULT_NATPMP), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
-#else
-    hidden_args.emplace_back("-natpmp");
-#endif // USE_NATPMP
+    argsman.AddArg("-pcp", strprintf("Use PCP to map the listening port (default: %u)", DEFAULT_PCP), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
+    argsman.AddArg("-natpmp", "Deprecated alias for -pcp", ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-whitebind=<[permissions@]addr>", "Bind to the given address and add permission flags to the peers connecting to it. "
         "Use [host]:port notation for IPv6. Allowed permissions: " + Join(NET_PERMISSIONS_DOC, ", ") + ". "
         "Specify multiple permissions separated by commas (default: download,noban,mempool,relay). Can be specified multiple times.", ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
@@ -752,6 +749,9 @@ void InitParameterInteraction(ArgsManager& args)
         if (args.SoftSetBoolArg("-natpmp", false)) {
             LogPrintf("%s: parameter interaction: -proxy set -> setting -natpmp=0\n", __func__);
         }
+        if (args.SoftSetBoolArg("-pcp", false)) {
+            LogPrintf("%s: parameter interaction: -proxy set -> setting -pcp=0\n", __func__);
+        }
         // to protect privacy, do not discover addresses by default
         if (args.SoftSetBoolArg("-discover", false))
             LogPrintf("%s: parameter interaction: -proxy set -> setting -discover=0\n", __func__);
@@ -763,6 +763,9 @@ void InitParameterInteraction(ArgsManager& args)
             LogPrintf("%s: parameter interaction: -listen=0 -> setting -upnp=0\n", __func__);
         if (args.SoftSetBoolArg("-natpmp", false)) {
             LogPrintf("%s: parameter interaction: -listen=0 -> setting -natpmp=0\n", __func__);
+        }
+        if (args.SoftSetBoolArg("-pcp", false)) {
+            LogPrintf("%s: parameter interaction: -listen=0 -> setting -pcp=0\n", __func__);
         }
         if (args.SoftSetBoolArg("-discover", false))
             LogPrintf("%s: parameter interaction: -listen=0 -> setting -discover=0\n", __func__);
@@ -1804,8 +1807,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     LogPrintf("nBestHeight = %d\n", chain_active_height);
     if (node.peerman) node.peerman->SetBestBlock(chain_active_height, std::chrono::seconds{best_block_time});
 
-    // Map ports with UPnP or NAT-PMP.
-    StartMapPort(args.GetBoolArg("-upnp", DEFAULT_UPNP), args.GetBoolArg("-natpmp", DEFAULT_NATPMP));
+    // Map ports with UPnP or PCP (allow -natpmp as alias for -pcp for options backwards compatibilty).
+    if (args.GetBoolArg("-natpmp", false)) {
+        LogPrintf("Warning: -natpmp is deprecated in favor of -pcp and will be removed in a future update, please use the new option.\n");
+    }
+    StartMapPort(args.GetBoolArg("-upnp", DEFAULT_UPNP), args.GetBoolArg("-pcp", DEFAULT_PCP) || args.GetBoolArg("-natpmp", false));
 
     CConnman::Options connOptions;
     connOptions.nLocalServices = nLocalServices;
