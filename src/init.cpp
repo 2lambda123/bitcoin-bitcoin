@@ -142,11 +142,12 @@ static constexpr bool DEFAULT_STOPAFTERBLOCKIMPORT{false};
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for
 // accessing block files don't count towards the fd_set size limit
 // anyway.
-#define MIN_CORE_FILEDESCRIPTORS 0
+#define MIN_LEVELDB_FDS 0
 #else
-#define MIN_CORE_FILEDESCRIPTORS 150
+#define MIN_LEVELDB_FDS 150
 #endif
 
+static const int MIN_CORE_FDS = MIN_LEVELDB_FDS + NUM_FDS_MESSAGE_CAPTURE;
 static const char* DEFAULT_ASMAP_FILENAME="ip_asn.map";
 
 /**
@@ -967,22 +968,29 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         return InitError(Untranslated("Cannot set -listen=0 together with -listenonion=1"));
     }
 
-    // Make sure enough file descriptors are available
+    // Make sure enough file descriptors are available. We need to reserve enough FDs to account for the bare minimum,
+    // plus all manual connections and all bound interfaces. Any remainder will be available for connection sockets
+
+    // Number of bound interfaces (we have at least one)
     int nBind = std::max(nUserBind, size_t(1));
+    // Maximum number of connetions with other nodes, this accounts for all types of outbound and inbounds expect for manual
     nUserMaxConnections = args.GetIntArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
     nMaxConnections = std::max(nUserMaxConnections, 0);
+    // Reserve enough FDs to account for the bare minimum, plus any manual connections, plus the bound interfaces
+    int nMinRequiredFds = MIN_CORE_FDS + MAX_ADDNODE_CONNECTIONS + nBind;
 
-    nFD = RaiseFileDescriptorLimit(nMaxConnections + MIN_CORE_FILEDESCRIPTORS + MAX_ADDNODE_CONNECTIONS + nBind + NUM_FDS_MESSAGE_CAPTURE);
+    // Try raising the FD limit to what we need (nFD may be smaller than the requested amount if this fails)
+    nFD = RaiseFileDescriptorLimit(nMaxConnections + nMinRequiredFds);
     // If we are using select instead of poll, our actuall limit may be even smaller
 #ifndef USE_POLL
     nFD = std::min(FD_SETSIZE, nFD);
 #endif
-    if (nFD < MIN_CORE_FILEDESCRIPTORS)
-        return InitError(_("Not enough file descriptors available."));
+    if (nFD < MIN_CORE_FDS)
+        return InitError(strprintf(_("Not enough file descriptors available. %d available, %d required."), nFD, MIN_CORE_FDS));
 
     // Trim requested connection counts, to fit into system limitations
     // <int> in std::min<int>(...) to work around FreeBSD compilation issue described in #2695
-    nMaxConnections = std::max(std::min<int>(nMaxConnections, nFD - nBind - MIN_CORE_FILEDESCRIPTORS - MAX_ADDNODE_CONNECTIONS - NUM_FDS_MESSAGE_CAPTURE), 0);
+    nMaxConnections = std::max(std::min<int>(nMaxConnections, nFD - nMinRequiredFds), 0);
 
     if (nMaxConnections < nUserMaxConnections)
         InitWarning(strprintf(_("Reducing -maxconnections from %d to %d, because of system limitations."), nUserMaxConnections, nMaxConnections));
