@@ -318,6 +318,21 @@ void SanityCheck(const DepGraph<BS>& depgraph, Span<const ClusterIndex> lineariz
     }
 }
 
+/** Stitch connected components together in a DepGraph, guaranteeing its corresponding cluster is connected. */
+template<typename BS>
+void MakeConnected(DepGraph<BS>& depgraph)
+{
+    auto todo = BS::Fill(depgraph.TxCount());
+    auto comp = depgraph.FindConnectedComponent(todo);
+    todo /= comp;
+    while (todo.Any()) {
+        auto nextcomp = depgraph.FindConnectedComponent(todo);
+        depgraph.AddDependency(comp.Last(), nextcomp.First());
+        todo /= nextcomp;
+        comp = nextcomp;
+    }
+}
+
 /** Given a dependency graph, and a todo set, read a topological subset of todo from reader. */
 template<typename BS>
 BS ReadTopologicalSet(const DepGraph<BS>& depgraph, const BS& todo, SpanReader& reader)
@@ -451,6 +466,20 @@ FUZZ_TARGET(clusterlin_depgraph_serialization)
     assert(depgraph.IsAcyclic());
 }
 
+FUZZ_TARGET(clusterlin_make_connected)
+{
+    // Verify that MakeConnected makes graphs connected.
+
+    SpanReader reader(buffer);
+    DepGraph<TestBitSet> depgraph;
+    try {
+        reader >> Using<DepGraphFormatter>(depgraph);
+    } catch (const std::ios_base::failure&) {}
+    MakeConnected(depgraph);
+    SanityCheck(depgraph);
+    assert(depgraph.IsConnected());
+}
+
 FUZZ_TARGET(clusterlin_ancestor_finder)
 {
     // Verify that AncestorCandidateFinder works as expected.
@@ -461,6 +490,7 @@ FUZZ_TARGET(clusterlin_ancestor_finder)
     try {
         reader >> Using<DepGraphFormatter>(depgraph);
     } catch (const std::ios_base::failure&) {}
+    MakeConnected(depgraph);
 
     AncestorCandidateFinder anc_finder(depgraph);
     auto todo = TestBitSet::Fill(depgraph.TxCount());
@@ -471,6 +501,7 @@ FUZZ_TARGET(clusterlin_ancestor_finder)
         assert(best_anc_set.Any());
         assert(best_anc_set << todo);
         assert(depgraph.FeeRate(best_anc_set) == best_anc_feerate);
+        assert(depgraph.IsConnected(best_anc_set));
         // Check that it is topologically valid.
         for (auto i : best_anc_set) {
             assert((depgraph.Ancestors(i) & todo) << best_anc_set);
@@ -510,6 +541,7 @@ FUZZ_TARGET(clusterlin_search_finder)
     try {
         reader >> Using<DepGraphFormatter>(depgraph);
     } catch (const std::ios_base::failure&) {}
+    MakeConnected(depgraph);
 
     // Instantiate ALL the candidate finders.
     SearchCandidateFinder src_finder(depgraph);
@@ -552,6 +584,9 @@ FUZZ_TARGET(clusterlin_search_finder)
 
         // Perform quality checks only if SearchCandidateFinder claims an optimal result.
         if (iteration_limit > 0) {
+            // Optimal sets are always connected.
+            assert(depgraph.IsConnected(found_set));
+
             // Compare with SimpleCandidateFinder.
             uint64_t simple_iter = 0x3ffff;
             auto [smp_set, smp_feerate] = smp_finder.FindCandidateSet(simple_iter);
@@ -596,6 +631,7 @@ FUZZ_TARGET(clusterlin_linearize)
     try {
         reader >> VARINT(iter_count) >> Using<DepGraphFormatter>(depgraph);
     } catch (const std::ios_base::failure&) {}
+    MakeConnected(depgraph);
 
     // Invoke Linearize().
     iter_count &= 0x7ffff;
