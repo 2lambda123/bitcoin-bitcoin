@@ -136,8 +136,14 @@ BITCOIN_CORE_H = \
   common/args.h \
   common/bloom.h \
   common/init.h \
+  common/transport.h \
   common/run_command.h \
+  common/sv2_messages.h \
+  common/sv2_noise.h \
+  common/sv2_transport.h \
   common/url.h \
+  common/v1_transport.h \
+  common/v2_transport.h \
   compat/assumptions.h \
   compat/byteswap.h \
   compat/compat.h \
@@ -201,6 +207,7 @@ BITCOIN_CORE_H = \
   memusage.h \
   merkleblock.h \
   net.h \
+  net_message.h \
   net_permissions.h \
   net_processing.h \
   net_types.h \
@@ -230,6 +237,7 @@ BITCOIN_CORE_H = \
   node/peerman_args.h \
   node/protocol_version.h \
   node/psbt.h \
+  node/sv2_template_provider.h \
   node/timeoffsets.h \
   node/transaction.h \
   node/txreconciliation.h \
@@ -383,7 +391,6 @@ libbitcoin_node_a_SOURCES = \
   addrdb.cpp \
   addrman.cpp \
   banman.cpp \
-  bip324.cpp \
   blockencodings.cpp \
   blockfilter.cpp \
   chain.cpp \
@@ -434,6 +441,7 @@ libbitcoin_node_a_SOURCES = \
   node/minisketchwrapper.cpp \
   node/peerman_args.cpp \
   node/psbt.cpp \
+  node/sv2_template_provider.cpp \
   node/timeoffsets.cpp \
   node/transaction.cpp \
   node/txreconciliation.cpp \
@@ -669,6 +677,7 @@ libbitcoin_common_a_SOURCES = \
   addresstype.cpp \
   base58.cpp \
   bech32.cpp \
+  bip324.cpp \
   chainparams.cpp \
   coins.cpp \
   common/args.cpp \
@@ -677,9 +686,15 @@ libbitcoin_common_a_SOURCES = \
   common/init.cpp \
   common/interfaces.cpp \
   common/run_command.cpp \
+  common/sv2_messages.cpp \
+  common/sv2_noise.cpp \
   common/settings.cpp \
+  common/sv2_transport.cpp \
   common/system.cpp \
+  common/transport.cpp \
   common/url.cpp \
+  common/v1_transport.cpp \
+  common/v2_transport.cpp \
   compressor.cpp \
   core_read.cpp \
   core_write.cpp \
