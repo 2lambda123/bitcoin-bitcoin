@@ -989,8 +989,7 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         return InitError(strprintf(_("Not enough file descriptors available. %d available, %d required."), nFD, MIN_CORE_FDS));
 
     // Trim requested connection counts, to fit into system limitations
-    // <int> in std::min<int>(...) to work around FreeBSD compilation issue described in #2695
-    nMaxConnections = std::max(std::min<int>(nMaxConnections, nFD - nMinRequiredFds), 0);
+    nMaxConnections = std::max(std::min(nMaxConnections, nFD - nMinRequiredFds), 0);
 
     if (nMaxConnections < nUserMaxConnections)
         InitWarning(strprintf(_("Reducing -maxconnections from %d to %d, because of system limitations."), nUserMaxConnections, nMaxConnections));
