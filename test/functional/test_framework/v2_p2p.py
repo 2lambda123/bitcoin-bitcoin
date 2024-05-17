@@ -4,7 +4,6 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Class for v2 P2P protocol (see BIP 324)"""
 
-import logging
 import random
 
 from .crypto.bip324_cipher import FSChaCha20Poly1305
@@ -14,14 +13,12 @@ from .crypto.hkdf import hkdf_sha256
 from .key import TaggedHash
 from .messages import MAGIC_BYTES
 
-logger = logging.getLogger("TestFramework.v2_p2p")
 
 CHACHA20POLY1305_EXPANSION = 16
 HEADER_LEN = 1
 IGNORE_BIT_POS = 7
 LENGTH_FIELD_LEN = 3
 MAX_GARBAGE_LEN = 4095
-TRANSPORT_VERSION = b''
 
 SHORTID = {
     1: b"addr",
@@ -81,6 +78,7 @@ class EncryptedP2PState:
 
         encrypt/decrypt v2 P2P messages using v2_enc_packet() and v2_receive_packet().
     """
+    transport_version = b''
     def __init__(self, *, initiating, net):
         self.initiating = initiating  # True if initiator
         self.net = net
@@ -116,7 +114,6 @@ class EncryptedP2PState:
         self.privkey_ours, self.ellswift_ours = ellswift_create()
         garbage_len = random.randrange(MAX_GARBAGE_LEN + 1)
         self.sent_garbage = random.randbytes(garbage_len)
-        logger.debug(f"sending {garbage_len} bytes of garbage data")
         return self.ellswift_ours + self.sent_garbage
 
     def initiate_v2_handshake(self):
@@ -172,7 +169,7 @@ class EncryptedP2PState:
             msg_to_send += self.v2_enc_packet(decoy_content_len * b'\x00', aad=aad, ignore=True)
             aad = b''
         # Send version packet.
-        msg_to_send += self.v2_enc_packet(TRANSPORT_VERSION, aad=aad)
+        msg_to_send += self.v2_enc_packet(self.transport_version, aad=aad)
         return 64 - len(self.received_prefix), msg_to_send
 
     def authenticate_handshake(self, response):

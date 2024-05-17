@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+# Copyright (c) 2022 The Bitcoin Core developers
+# Distributed under the MIT software license, see the accompanying
+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+import random
+from enum import Enum
+
+from test_framework.messages import MAGIC_BYTES
+from test_framework.p2p import P2PInterface
+from test_framework.test_framework import BitcoinTestFramework
+from test_framework.util import random_bitflip
+from test_framework.v2_p2p import (
+    EncryptedP2PState,
+    MAX_GARBAGE_LEN,
+)
+
+
+class TestType(Enum):
+    """ Scenarios to be tested:
+
+    1. EARLY_KEY_RESPONSE - The responder needs to wait until one byte is received which does not match the 16 bytes
+    consisting of network magic followed by "version\x00\x00\x00\x00\x00" before sending out its ellswift + garbage bytes
+    2. EXCESS_GARBAGE - Disconnection happens when > MAX_GARBAGE_LEN bytes garbage is sent
+    3. WRONG_GARBAGE_TERMINATOR - Disconnection happens when incorrect garbage terminator is sent
+    4. WRONG_GARBAGE - Disconnection happens when garbage bytes that is sent is different from what the peer receives
+    5. SEND_NO_AAD - Disconnection happens when AAD of first encrypted packet after the garbage terminator is not filled
+    6. SEND_NON_EMPTY_VERSION_PACKET - non-empty version packet is simply ignored
+    """
+    EARLY_KEY_RESPONSE = 0
+    EXCESS_GARBAGE = 1
+    WRONG_GARBAGE_TERMINATOR = 2
+    WRONG_GARBAGE = 3
+    SEND_NO_AAD = 4
+    SEND_NON_EMPTY_VERSION_PACKET = 5
+
+
+class EarlyKeyResponseState(EncryptedP2PState):
+    """ Modify v2 P2P protocol functions for testing EARLY_KEY_RESPONSE scenario"""
+    def __init__(self, initiating, net):
+        super().__init__(initiating=initiating, net=net)
+        self.magic_sent = False  # set to True after first 4 bytes of ellswift which match network magic is sent.
+        self.can_data_be_received = False  # variable used to assert if data is received on recvbuf.
+
+    def initiate_v2_handshake(self):
+        """Send ellswift and garbage bytes in 2 parts when TestType = (EARLY_KEY_RESPONSE)"""
+        # Here, the 64 bytes ellswift is assumed to have it's first 4 bytes match network magic bytes.
+        # It is sent in 2 phases:
+        # 1. when `magic_sent` = False, send first 4 bytes of ellswift (matches network magic bytes)
+        # 2. when `magic_sent` = True, send remaining 60 bytes of ellswift
+        if not self.magic_sent:
+            self.generate_keypair_and_garbage()
+            self.magic_sent = True
+            return MAGIC_BYTES[self.net]
+        else:
+            # `can_data_be_received` is a variable used to assert if data is received on recvbuf.
+            # 1. v2 TestNode shouldn't respond back if we send V1_PREFIX and data shouldn't be received on recvbuf.
+            # This state is represented using `can_data_be_received` = False.
+            # 2. v2 TestNode responds back when mismatch from V1_PREFIX happens and data can be received on recvbuf.
+            # This state is represented using `can_data_be_received` = True.
+            self.can_data_be_received = True
+            return self.ellswift_ours[4:] + self.sent_garbage
+
+
+class ExcessGarbageState(EncryptedP2PState):
+    """Generate > MAX_GARBAGE_LEN garbage bytes"""
+    def generate_keypair_and_garbage(self):
+        ellswift_garbage_bytes = super().generate_keypair_and_garbage()
+        even_more_garbage = random.randbytes(MAX_GARBAGE_LEN)
+        self.sent_garbage += even_more_garbage
+        return ellswift_garbage_bytes + even_more_garbage
+
+
+class WrongGarbageTerminatorState(EncryptedP2PState):
+    """Add option for sending wrong garbage terminator"""
+    def generate_keypair_and_garbage(self):
+        ellswift_garbage_bytes = super().generate_keypair_and_garbage()
+        max_limit_bytes = 64 + MAX_GARBAGE_LEN//2
+        if len(ellswift_garbage_bytes) > max_limit_bytes:
+            ellswift_garbage_bytes = ellswift_garbage_bytes[:max_limit_bytes]
+            self.sent_garbage = self.sent_garbage[:max_limit_bytes - 64]
+        return ellswift_garbage_bytes
+
+    def complete_handshake(self, response):
+        length, handshake_bytes = super().complete_handshake(response)
+        # first 16 bytes returned by complete_handshake() is the garbage terminator
+        wrong_garbage_terminator = random_bitflip(handshake_bytes[:16])
+        return length, wrong_garbage_terminator + handshake_bytes[16:]
+
+
+class WrongGarbageState(EncryptedP2PState):
+    """Generate tampered garbage bytes"""
+    def generate_keypair_and_garbage(self):
+        ellswift_garbage_bytes = super().generate_keypair_and_garbage()
+        # assume that garbage bytes sent to TestNode were tampered with
+        return ellswift_garbage_bytes[:64] + random_bitflip(ellswift_garbage_bytes[64:])
+
+
+class NoAADState(EncryptedP2PState):
+    """Add option for not filling first encrypted packet after garbage terminator with AAD"""
+    def complete_handshake(self, response):
+        self.sent_garbage = b''  # do not authenticate the garbage which is sent
+        return super().complete_handshake(response)
+
+
+class NonEmptyVersionPacketState(EncryptedP2PState):
+    """"Add option for sending non-empty transport version packet."""
+    def complete_handshake(self, response):
+        self.transport_version = random.randbytes(5)
+        return super().complete_handshake(response)
+
+
+class MisbehavingV2Peer(P2PInterface):
+    """Custom implementation of P2PInterface which uses modified v2 P2P protocol functions for testing purposes."""
+    def __init__(self, test_type):
+        super().__init__()
+        self.connection_opened = False
+        self.test_type = test_type
+
+    def connection_made(self, transport):
+        """Only first 4 ellswift bytes which match network magic bytes is sent using `initial_v2_handshake()` in
+        `connection_made()` when TestType = (EARLY_KEY_RESPONSE)"""
+        if self.test_type == TestType.EARLY_KEY_RESPONSE:
+            self.v2_state = EarlyKeyResponseState(initiating=True, net='regtest')
+        elif self.test_type == TestType.EXCESS_GARBAGE:
+            self.v2_state = ExcessGarbageState(initiating=True, net='regtest')
+        elif self.test_type == TestType.WRONG_GARBAGE_TERMINATOR:
+            self.v2_state = WrongGarbageTerminatorState(initiating=True, net='regtest')
+        elif self.test_type == TestType.WRONG_GARBAGE:
+            self.v2_state = WrongGarbageState(initiating=True, net='regtest')
+        elif self.test_type == TestType.SEND_NO_AAD:
+            self.v2_state = NoAADState(initiating=True, net='regtest')
+        elif TestType.SEND_NON_EMPTY_VERSION_PACKET:
+            self.v2_state = NonEmptyVersionPacketState(initiating=True, net='regtest')
+        super().connection_made(transport)
+
+    def data_received(self, t):
+        if self.test_type == TestType.EARLY_KEY_RESPONSE:
+            # check that data can be received on recvbuf only when mismatch from V1_PREFIX happens (magic_sent = True)
+            assert self.v2_state.can_data_be_received and self.v2_state.magic_sent
+        else:
+            super().data_received(t)
+
+    def on_open(self):
+        self.connection_opened = True
+
+
+class EncryptedP2PMisbehaving(BitcoinTestFramework):
+    def set_test_params(self):
+        self.num_nodes = 1
+        self.extra_args = [["-v2transport=1", "-peertimeout=3"]]
+
+    def run_test(self):
+        self.test_earlykeyresponse()
+        self.test_v2disconnection()
+
+    def test_earlykeyresponse(self):
+        self.log.info('Sending ellswift bytes in parts to ensure that response from responder is received only when')
+        self.log.info('ellswift bytes have a mismatch from the 16 bytes(network magic followed by "version\\x00\\x00\\x00\\x00\\x00")')
+        node0 = self.nodes[0]
+        self.log.info('Sending first 4 bytes of ellswift which match network magic')
+        self.log.info('If a response is received, assertion failure would happen in our custom data_received() function')
+        # send happens in `initiate_v2_handshake()` in `connection_made()`
+        peer1 = node0.add_p2p_connection(MisbehavingV2Peer(TestType.EARLY_KEY_RESPONSE), wait_for_verack=False, send_version=False, supports_v2_p2p=True, wait_for_v2_handshake=False)
+        self.wait_until(lambda: peer1.connection_opened)
+        self.log.info('Sending remaining ellswift and garbage which are different from V1_PREFIX. Since a response is')
+        self.log.info('expected now, our custom data_received() function wouldn\'t result in assertion failure')
+        ellswift_and_garbage_data = peer1.v2_state.initiate_v2_handshake()
+        peer1.send_raw_message(ellswift_and_garbage_data)
+        with node0.assert_debug_log(['version handshake timeout peer=0']):
+            peer1.wait_for_disconnect(timeout=5)
+        self.log.info('successful disconnection since modified ellswift was sent as response')
+
+    def test_v2disconnection(self):
+        # test v2 disconnection scenarios
+        node0 = self.nodes[0]
+        expected_debug_message = [
+            [],  # EARLY_KEY_RESPONSE
+            ["V2 transport error: missing garbage terminator, peer=1"],  # EXCESS_GARBAGE
+            ["version handshake timeout peer=2"],  # WRONG_GARBAGE_TERMINATOR
+            ["V2 transport error: packet decryption failure"],  # WRONG_GARBAGE
+            ["V2 transport error: packet decryption failure"],  # SEND_NO_AAD
+            [],  # SEND_NON_EMPTY_VERSION_PACKET
+        ]
+        for test_type in TestType:
+            if test_type == TestType.EARLY_KEY_RESPONSE:
+                continue
+            elif test_type == TestType.SEND_NON_EMPTY_VERSION_PACKET:
+                node0.add_p2p_connection(MisbehavingV2Peer(test_type), wait_for_verack=True, send_version=True, supports_v2_p2p=True)
+                self.log.info(f"No disconnection for {test_type.name}")
+            else:
+                with node0.assert_debug_log(expected_debug_message[test_type.value], timeout=5):
+                    peer = node0.add_p2p_connection(MisbehavingV2Peer(test_type), wait_for_verack=False, send_version=False, supports_v2_p2p=True, expect_success=False)
+                    peer.wait_for_disconnect()
+                self.log.info(f"Expected disconnection for {test_type.name}")
+
+
+if __name__ == '__main__':
+    EncryptedP2PMisbehaving().main()
