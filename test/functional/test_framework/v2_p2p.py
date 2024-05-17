@@ -19,7 +19,6 @@ HEADER_LEN = 1
 IGNORE_BIT_POS = 7
 LENGTH_FIELD_LEN = 3
 MAX_GARBAGE_LEN = 4095
-TRANSPORT_VERSION = b''
 
 SHORTID = {
     1: b"addr",
@@ -79,6 +78,7 @@ class EncryptedP2PState:
 
         encrypt/decrypt v2 P2P messages using v2_enc_packet() and v2_receive_packet().
     """
+    transport_version = b''
     def __init__(self, *, initiating, net):
         self.initiating = initiating  # True if initiator
         self.net = net
@@ -169,7 +169,7 @@ class EncryptedP2PState:
             msg_to_send += self.v2_enc_packet(decoy_content_len * b'\x00', aad=aad, ignore=True)
             aad = b''
         # Send version packet.
-        msg_to_send += self.v2_enc_packet(TRANSPORT_VERSION, aad=aad)
+        msg_to_send += self.v2_enc_packet(self.transport_version, aad=aad)
         return 64 - len(self.received_prefix), msg_to_send
 
     def authenticate_handshake(self, response):
