@@ -4,9 +4,9 @@
 
 use std::env;
 use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::process::ExitCode;
+use std::process::{Command, ExitCode, Stdio};
 
 type LintError = String;
 type LintResult = Result<(), LintError>;
@@ -292,6 +292,33 @@ fn lint_doc() -> LintResult {
     }
 }
 
+fn lint_markdown() -> LintResult {
+    let bin_name = "mlc";
+    let mut md_ignore_paths = get_subtrees();
+    md_ignore_paths.push("./doc/README_doxygen.md");
+    let md_ignore_path_str = md_ignore_paths.join(",");
+
+    let mut cmd = Command::new(bin_name);
+    cmd.args([
+        "--offline",
+        "--ignore-path",
+        md_ignore_path_str.as_str(),
+        "--root-dir",
+        ".",
+    ])
+    .stdout(Stdio::null()); // Suppress overly-verbose output
+
+    match cmd.status() {
+        Ok(status) if status.success() => Ok(()),
+        Ok(_) => Err("mlc command failed".to_string()), // Ran but did not succeed
+        Err(e) if e.kind() == ErrorKind::NotFound => {
+            println!("`mlc` was not found in $PATH, skipping markdown lint check.");
+            Ok(())
+        }
+        Err(e) => Err(format!("Error running mlc: {}", e)), // Misc errors
+    }
+}
+
 fn lint_all() -> LintResult {
     let mut good = true;
     let lint_dir = get_git_root().join("test/lint");
@@ -325,6 +352,7 @@ fn main() -> ExitCode {
         ("no-tabs check", lint_tabs_whitespace),
         ("build config includes check", lint_includes_build_config),
         ("-help=1 documentation check", lint_doc),
+        ("markdown hyperlink check", lint_markdown),
         ("lint-*.py scripts", lint_all),
     ];
 
