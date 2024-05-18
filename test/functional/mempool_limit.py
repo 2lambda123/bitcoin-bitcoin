@@ -103,16 +103,22 @@ class MempoolLimitTest(BitcoinTestFramework):
         # UTXOs to be spent by the ultimate child transaction
         parent_utxos = []
 
+        self.log.info(f"LMR mempoolinfo {current_info}")
         evicted_weight = 8000
         # Mempool transaction which is evicted due to being at the "bottom" of the mempool when the
         # mempool overflows and evicts by descendant score. It's important that the eviction doesn't
         # happen in the middle of package evaluation, as it can invalidate the coins cache.
-        mempool_evicted_tx = self.wallet.send_self_transfer(
-            from_node=node,
+        mempool_evicted_tx = self.wallet.create_self_transfer(
             fee=(mempoolmin_feerate / 1000) * (evicted_weight // 4) + Decimal('0.000001'),
             target_weight=evicted_weight,
             confirmed_only=True
         )
+        self.log.info(f"LMR tx fee: {(mempoolmin_feerate / 1000) * (evicted_weight // 4) + Decimal('0.000001')}")
+        self.log.info(f"LMR tx weight: {mempool_evicted_tx['tx'].get_weight()}")
+        self.log.info(f"LMR tx vsize: {mempool_evicted_tx['tx'].get_vsize()}")
+        self.wallet.sendrawtransaction(from_node=node, tx_hex=mempool_evicted_tx['hex'])
+        current_info = node.getmempoolinfo()
+        self.log.info(f"LMR mempoolinfo {current_info}")
         # Already in mempool when package is submitted.
         assert mempool_evicted_tx["txid"] in node.getrawmempool()
 
