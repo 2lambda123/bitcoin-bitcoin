@@ -300,7 +300,11 @@ static Span<const std::byte> SpanFromDbt(const SafeDbt& dbt)
 }
 
 BerkeleyDatabase::BerkeleyDatabase(std::shared_ptr<BerkeleyEnvironment> env, fs::path filename, const DatabaseOptions& options) :
-    WalletDatabase(), env(std::move(env)), m_filename(std::move(filename)), m_max_log_mb(options.max_log_mb)
+    WalletDatabase(),
+    env(std::move(env)),
+    m_byteswap(options.require_format == DatabaseFormat::BERKELEY_SWAP),
+    m_filename(std::move(filename)),
+    m_max_log_mb(options.max_log_mb)
 {
     auto inserted = this->env->m_databases.emplace(m_filename, std::ref(*this));
     assert(inserted.second);
@@ -387,6 +391,10 @@ void BerkeleyDatabase::Open()
                 if (ret != 0) {
                     throw std::runtime_error(strprintf("BerkeleyDatabase: Failed to configure for no temp file backing for database %s", strFile));
                 }
+            }
+
+            if (m_byteswap) {
+                pdb_temp->set_lorder(std::endian::native == std::endian::little ? 4321 : 1234);
             }
 
             ret = pdb_temp->open(nullptr,                             // Txn pointer
@@ -520,6 +528,10 @@ bool BerkeleyDatabase::Rewrite(const char* pszSkip)
                 { // surround usage of db with extra {}
                     BerkeleyBatch db(*this, true);
                     std::unique_ptr<Db> pdbCopy = std::make_unique<Db>(env->dbenv.get(), 0);
+
+                    if (m_byteswap) {
+                        pdbCopy->set_lorder(std::endian::native == std::endian::little ? 4321 : 1234);
+                    }
 
                     int ret = pdbCopy->open(nullptr,               // Txn pointer
                                             strFileRes.c_str(), // Filename
