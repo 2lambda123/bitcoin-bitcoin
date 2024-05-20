@@ -6,6 +6,14 @@
 #define BITCOIN_HTTPRPC_H
 
 #include <any>
+#include <util/fs.h>
+#include <util/fs_helpers.h>
+
+/** Default permissions for cookie file.
+ * Set to owner read/write, which on Windows sets the write permission.
+ */
+const CookiePerms::Perm DEFAULT_COOKIE_PERMS = CookiePerms::owner;
+
 
 /** Start HTTP RPC subsystem.
  * Precondition; HTTP and RPC has been started.

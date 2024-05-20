@@ -62,6 +62,19 @@ void ReleaseDirectoryLocks();
 bool TryCreateDirectories(const fs::path& p);
 fs::path GetDefaultDataDir();
 
+std::string PermsToString(fs::perms p);
+
+struct CookiePerms {
+    struct Perm {
+        const char* name;
+        fs::perms permissions;
+    };
+
+    static constexpr Perm owner  {"owner",  fs::perms::owner_read | fs::perms::owner_write};
+    static constexpr Perm group  {"group",  owner.permissions     | fs::perms::group_read};
+    static constexpr Perm all    {"all",    group.permissions     | fs::perms::others_read};
+};
+
 #ifdef WIN32
 fs::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
 #endif
