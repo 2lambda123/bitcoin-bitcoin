@@ -372,10 +372,28 @@ public:
     //! (part of the same chain).
     bool CheckBlockDataAvailability(const CBlockIndex& upper_block LIFETIMEBOUND, const CBlockIndex& lower_block LIFETIMEBOUND) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    //! Find the first stored ancestor of start_block immediately after the last
-    //! pruned ancestor. Return value will never be null. Caller is responsible
-    //! for ensuring that start_block has data is not pruned.
-    const CBlockIndex* GetFirstStoredBlock(const CBlockIndex& start_block LIFETIMEBOUND, const CBlockIndex* lower_block=nullptr) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    /**
+     * @brief Finds the furthest away ancestor of `upper_block` of which the nStatus matches the `status_mask`
+     *
+     * Starts from `upper_block` and iterates backwards through its ancestors for as long as the block's
+     * nStatus keeps matching the `status_mask` mask, or until it encounters `lower_block`.
+     *
+     * @pre `upper_block` must match the `status_mask`.
+     *
+     * @param upper_block The block from which to start the search, must meet the `status_mask` criteria.
+     * @param status_mask A bitmask representing the conditions to check against each block's nStatus.
+     * @param lower_block An optional pointer to the `CBlockIndex` that serves as the lower boundary of
+     *                    the search (inclusive). If `nullptr`, the search includes up to the genesis
+     *                    block.
+     * @return A (non-null) pointer to the `CBlockIndex` of the furthest away ancestor (including
+     *         `upper_block` itself) that matches the `status_mask`, up to and including
+     *         `lower_block` if it is part of the ancestry.
+     */
+    const CBlockIndex* GetFirstBlock(
+        const CBlockIndex& upper_block LIFETIMEBOUND,
+        uint32_t status_mask,
+        const CBlockIndex* lower_block = nullptr
+    ) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /** True if any block files have ever been pruned. */
     bool m_have_pruned = false;
