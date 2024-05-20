@@ -1449,6 +1449,16 @@ A few guidelines for introducing and reviewing new RPC interfaces:
   - *Rationale*: JSON strings are Unicode strings, not byte strings, and
     RFC8259 requires JSON to be encoded as UTF-8.
 
+- When choosing data types for RPC JSON, prefer data types that are flexible to expansion without change of data type. For example, `{"result":{"warnings":[]}}` rather than `{"result":{"warnings":""}}`, which allows for multiple warnings to be included as array elements.
+
+  - *Rationale*: Planning for expansion can reduce RPC interface updates, reducing incompatibility risk to downstream applications.
+
+A few guidelines for modifying and reviewing existing RPC interfaces:
+
+- When modifying RPC interface JSON structure, implement associated `-deprecatedrpc=` option to retain previous RPC behavior, including (but not limited to) the following: data types changes (e.g. from `{"result":{"warnings":""}}` to `{"result":{"warnings":[]}}`, changing a value from a string to a number, etc.), logical meaning changes of a value, key name changes (e.g. `{"result":{"warning":""}}` to `{"result":{"warnings":""}}`).  Include detailed instructions on feature deprecation and re-enabling in release notes.
+
+  - *Rationale*: Changes in RPC JSON structure can break downstream application compatibility.  Implementation of `deprecatedrpc` provides a grace-period for downstream applications to migrate. Release notes provide notification to downstream users.
+
 Internal interface guidelines
 -----------------------------
 
