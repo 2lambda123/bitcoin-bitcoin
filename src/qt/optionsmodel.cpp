@@ -42,7 +42,7 @@ static const char* SettingName(OptionsModel::OptionID option)
     case OptionsModel::SpendZeroConfChange: return "spendzeroconfchange";
     case OptionsModel::ExternalSignerPath: return "signer";
     case OptionsModel::MapPortUPnP: return "upnp";
-    case OptionsModel::MapPortNatpmp: return "natpmp";
+    case OptionsModel::MapPortPCP: return "pcp";
     case OptionsModel::Listen: return "listen";
     case OptionsModel::Server: return "server";
     case OptionsModel::PruneSize: return "prune";
@@ -216,7 +216,7 @@ bool OptionsModel::Init(bilingual_str& error)
     // These are shared with the core or have a command-line parameter
     // and we want command-line parameters to overwrite the GUI settings.
     for (OptionID option : {DatabaseCache, ThreadsScriptVerif, SpendZeroConfChange, ExternalSignerPath, MapPortUPnP,
-                            MapPortNatpmp, Listen, Server, Prune, ProxyUse, ProxyUseTor, Language}) {
+                            MapPortPCP, Listen, Server, Prune, ProxyUse, ProxyUseTor, Language}) {
         std::string setting = SettingName(option);
         if (node().isSettingIgnored(setting)) addOverriddenOption("-" + setting);
         try {
@@ -413,12 +413,8 @@ QVariant OptionsModel::getOption(OptionID option, const std::string& suffix) con
 #else
         return false;
 #endif // USE_UPNP
-    case MapPortNatpmp:
-#ifdef USE_NATPMP
-        return SettingToBool(setting(), DEFAULT_NATPMP);
-#else
-        return false;
-#endif // USE_NATPMP
+    case MapPortPCP:
+        return SettingToBool(setting(), DEFAULT_PCP);
     case MinimizeOnClose:
         return fMinimizeOnClose;
 
@@ -532,10 +528,10 @@ bool OptionsModel::setOption(OptionID option, const QVariant& value, const std::
     case MapPortUPnP: // core option - can be changed on-the-fly
         if (changed()) {
             update(value.toBool());
-            node().mapPort(value.toBool(), getOption(MapPortNatpmp).toBool());
+            node().mapPort(value.toBool(), getOption(MapPortPCP).toBool());
         }
         break;
-    case MapPortNatpmp: // core option - can be changed on-the-fly
+    case MapPortPCP: // core option - can be changed on-the-fly
         if (changed()) {
             update(value.toBool());
             node().mapPort(getOption(MapPortUPnP).toBool(), value.toBool());
@@ -789,7 +785,6 @@ void OptionsModel::checkAndMigrate()
     migrate_setting(ExternalSignerPath, "external_signer_path");
 #endif
     migrate_setting(MapPortUPnP, "fUseUPnP");
-    migrate_setting(MapPortNatpmp, "fUseNatpmp");
     migrate_setting(Listen, "fListen");
     migrate_setting(Server, "server");
     migrate_setting(PruneSize, "nPruneSize");

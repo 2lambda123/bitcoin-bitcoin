@@ -51,7 +51,7 @@ public:
         ShowTrayIcon,           // bool
         MinimizeToTray,         // bool
         MapPortUPnP,            // bool
-        MapPortNatpmp,          // bool
+        MapPortPCP,             // bool
         MinimizeOnClose,        // bool
         ProxyUse,               // bool
         ProxyIP,                // QString
