@@ -37,9 +37,13 @@ outgoing connections, but more is possible.
                     You need to use -noonion or -onion=0 to explicitly disable
                     outbound access to onion services.
 
-    -onion=ip:port  Set the proxy server to use for Tor onion services. You do not
-                    need to set this if it's the same as -proxy. You can use -onion=0
-                    to explicitly disable access to onion services.
+    -onion=ip:port  Set the proxy server to use for Tor onion services. Defaults to the
+                    value of -proxy. You can use -onion=0 to explicitly disable access
+                    to onion services.
+                    ------------------------------------------------------------------
+                    For -privatebroadcast to also send transactions to IPv4 and IPv6
+                    peers over Tor -onion must be explicitly set, even if it is the
+                    same as -proxy.
                     ------------------------------------------------------------------
                     Note: Only the -proxy option sets the proxy for DNS requests;
                     with -onion they will not route over Tor, so use -proxy if you
