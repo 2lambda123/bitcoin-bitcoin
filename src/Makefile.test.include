@@ -172,8 +172,7 @@ BITCOIN_TESTS =\
   test/validation_flush_tests.cpp \
   test/validation_tests.cpp \
   test/validationinterface_tests.cpp \
-  test/versionbits_tests.cpp \
-  test/xoroshiro128plusplus_tests.cpp
+  test/versionbits_tests.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
@@ -292,6 +291,7 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/bech32.cpp \
  test/fuzz/bip324.cpp \
  test/fuzz/bitdeque.cpp \
+ test/fuzz/bitset.cpp \
  test/fuzz/block.cpp \
  test/fuzz/block_header.cpp \
  test/fuzz/blockfilter.cpp \
@@ -299,6 +299,7 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/buffered_file.cpp \
  test/fuzz/chain.cpp \
  test/fuzz/checkqueue.cpp \
+ test/fuzz/cluster_linearize.cpp \
  test/fuzz/coins_view.cpp \
  test/fuzz/coinscache_sim.cpp \
  test/fuzz/connman.cpp \
@@ -362,6 +363,7 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/psbt.cpp \
  test/fuzz/random.cpp \
  test/fuzz/rbf.cpp \
+ test/fuzz/ringbuffer.cpp \
  test/fuzz/rolling_bloom_filter.cpp \
  test/fuzz/rpc.cpp \
  test/fuzz/script.cpp \
