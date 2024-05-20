@@ -38,6 +38,11 @@ enum class TransactionError;
 struct FlatSigningProvider;
 struct bilingual_str;
 
+namespace node
+{
+class Warnings;
+} // namespace node
+
 static constexpr bool DEFAULT_RPC_DOC_CHECK{
 #ifdef RPC_DOC_CHECK
     true
@@ -512,7 +517,5 @@ private:
  */
 void PushWarnings(const UniValue& warnings, UniValue& obj);
 void PushWarnings(const std::vector<bilingual_str>& warnings, UniValue& obj);
-
-UniValue GetNodeWarnings(bool use_deprecated);
 
 #endif // BITCOIN_RPC_UTIL_H
